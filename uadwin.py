@@ -12,6 +12,8 @@ class UADWIN(base.DriftDetector):
         self.delta = delta
         self.max_buckets = max_buckets
         self.min_samples_test = min_samples_test
+        # Grace period: the minimum total number of samples to perform the tests
+        self._gp = 2 * self.min_samples_test
 
         self._levels = collections.deque()
         self._total_var = stats.Var()
@@ -72,7 +74,7 @@ class UADWIN(base.DriftDetector):
                 self._levels.appendleft(collections.deque([new_bucket]))
 
     def _detect_change(self):
-        if self.size < 2 * self.min_samples_test:
+        if self.size < self._gp:
             return False
 
         change_detected = False
@@ -92,7 +94,7 @@ class UADWIN(base.DriftDetector):
                     break
                 continue
 
-            if self.size < 2 * self.min_samples_test:
+            if self.size < self._gp:
                 break
 
             j = 0
