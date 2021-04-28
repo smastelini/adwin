@@ -2,17 +2,18 @@ import collections
 import math
 from scipy.stats import ttest_ind_from_stats as t_test
 
+from river import base
 from river import stats
 
 
-class UADWIN:
+class UADWIN(base.DriftDetector):
     def __init__(self, delta=0.05, max_buckets=5, min_samples_test=10):
+        super().__init__()
         self.delta = delta
         self.max_buckets = max_buckets
         self.min_samples_test = min_samples_test
 
         self._levels = collections.deque()
-        self._capacities = collections.deque()
         self._total_var = stats.Var()
 
     @property
@@ -31,13 +32,14 @@ class UADWIN:
         # The level of capacity 2 ** 0 needs to be created
         if self.size == 0:
             self._levels.append(collections.deque([x]))
-            self._capacities.append(1)
         else:
             self._levels[-1].append(x)
 
         self._total_var.update(x)
         self._compress()
-        return self._detect_change(), False
+        self._in_concept_change = self._detect_change()
+
+        return self._in_concept_change, self._in_warning_zone
 
     def _compress(self):
         if len(self._levels[-1]) <= self.max_buckets:
@@ -50,8 +52,8 @@ class UADWIN:
 
         # Only the level whose elements have capacity equals to 1 is present until now
         if len(self._levels) == 1:
+            # Create a new level with double the capacity of the current one
             self._levels.appendleft(collections.deque([new_bucket]))
-            self._capacities.appendleft(2)
             return
 
         self._levels[-2].append(new_bucket)
@@ -68,8 +70,6 @@ class UADWIN:
                 self._levels[i - 1].append(new_bucket)
             else:  # A new level needs to be created
                 self._levels.appendleft(collections.deque([new_bucket]))
-                # Set the capacity to a value two times higher than the current maximum capacity
-                self._capacities.appendleft(2 ** len(self._capacities))
 
     def _detect_change(self):
         if self.size < 2 * self.min_samples_test:
@@ -87,7 +87,6 @@ class UADWIN:
             # Remove empty levels
             if len(self._levels) > 0 and len(self._levels[0]) == 0:
                 self._levels.popleft()
-                self._capacities.popleft()
 
                 if self.size == 0:
                     break
@@ -124,7 +123,6 @@ class UADWIN:
                     # Remove previous levels if needed
                     for _ in range(i):
                         self._levels.popleft()
-                        self._capacities.popleft()
                     i = 0
 
                     # Remove buckets from this level
@@ -138,6 +136,5 @@ class UADWIN:
         # Remove empty levels
         if len(self._levels) > 0 and len(self._levels[0]) == 0:
             self._levels.popleft()
-            self._capacities.popleft()
 
         return change_detected
