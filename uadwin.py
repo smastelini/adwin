@@ -18,6 +18,11 @@ class UADWIN(base.DriftDetector):
         self._levels = collections.deque()
         self._total_var = stats.Var()
 
+        self._tick = 0
+        self._clock = 2 ** self.max_buckets
+
+        self._n_detections = 0
+
     @property
     def size(self):
         return self._total_var.mean.n
@@ -29,6 +34,10 @@ class UADWIN(base.DriftDetector):
     @property
     def variance(self):
         return self._total_var.get()
+
+    @property
+    def n_detections(self):
+        return self._n_detections
 
     def update(self, x):
         # The level of capacity 2 ** 0 needs to be created
@@ -74,7 +83,8 @@ class UADWIN(base.DriftDetector):
                 self._levels.appendleft(collections.deque([new_bucket]))
 
     def _detect_change(self):
-        if self.size < self._gp:
+        self._tick += 1
+        if not self._tick % self._clock == 0 or self.size < self._gp:
             return False
 
         change_detected = False
@@ -138,5 +148,8 @@ class UADWIN(base.DriftDetector):
         # Remove empty levels
         if len(self._levels) > 0 and len(self._levels[0]) == 0:
             self._levels.popleft()
+
+        if change_detected:
+            self._n_detections += 1
 
         return change_detected

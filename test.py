@@ -25,7 +25,7 @@ for i, v in enumerate(x):
 
 
 mean = stats.Mean()
-adwin = UADWIN(0.001)
+adwin = UADWIN(0.0001)
 
 i = 1
 for x_v, y_v in zip(x, y):
