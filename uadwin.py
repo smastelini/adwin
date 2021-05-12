@@ -121,11 +121,16 @@ class UADWIN(base.DriftDetector):
                     stop_flag = True
                     break
 
-                p_value = t_test(
-                    w0.mean.get(), math.sqrt(w0.get()), w0.mean.n,
-                    w1.mean.get(), math.sqrt(w1.get()), w1.mean.n,
-                    equal_var=False
-                ).pvalue
+                try:
+                    p_value = t_test(
+                        w0.mean.get(), math.sqrt(w0.get()), w0.mean.n,
+                        w1.mean.get(), math.sqrt(w1.get()), w1.mean.n,
+                        equal_var=False
+                    ).pvalue
+                except ValueError:
+                    p_value = 1.0
+                except ZeroDivisionError:
+                    p_value = 1.0
 
                 if p_value <= delta:
                     change_detected = True
@@ -153,3 +158,8 @@ class UADWIN(base.DriftDetector):
             self._n_detections += 1
 
         return change_detected
+
+    def reset(self):
+        self.__init__(delta=self.delta,
+                      max_buckets=self.max_buckets,
+                      min_samples_test=self.min_samples_test)
