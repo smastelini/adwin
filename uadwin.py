@@ -84,7 +84,7 @@ class UADWIN(base.DriftDetector):
 
     def _detect_change(self):
         self._tick += 1
-        if not self._tick % self._clock == 0 or self.size < self._gp:
+        if not self._tick % self._clock == 0 or self.size < self._gp or self._total_var.get() <= 0:
             return False
 
         change_detected = False
@@ -99,16 +99,13 @@ class UADWIN(base.DriftDetector):
             # Remove empty levels
             if len(self._levels) > 0 and len(self._levels[0]) == 0:
                 self._levels.popleft()
-
-                if self.size == 0:
-                    break
                 continue
 
             if self.size < self._gp:
                 break
 
             j = 0
-            while self.size > 0 and j < len(self._levels[i]):
+            while self.size > self._gp and j < len(self._levels[i]):
                 w0 += self._levels[i][j]
                 w1 = self._total_var - w0
 
@@ -121,16 +118,18 @@ class UADWIN(base.DriftDetector):
                     stop_flag = True
                     break
 
-                try:
-                    p_value = t_test(
-                        w0.mean.get(), math.sqrt(w0.get()), w0.mean.n,
-                        w1.mean.get(), math.sqrt(w1.get()), w1.mean.n,
-                        equal_var=False
-                    ).pvalue
-                except ValueError:
-                    p_value = 1.0
-                except ZeroDivisionError:
-                    p_value = 1.0
+                w0_s2 = w0.get()
+                w1_s2 = w1.get()
+
+                # Due to numerical precision issues
+                if w1_s2 < 0:
+                    w1_s2 = 0
+
+                p_value = t_test(
+                    w0.mean.get(), math.sqrt(w0_s2), w0.mean.n,
+                    w1.mean.get(), math.sqrt(w1_s2), w1.mean.n,
+                    equal_var=True
+                ).pvalue
 
                 if p_value <= delta:
                     change_detected = True
