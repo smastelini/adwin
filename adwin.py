@@ -1,12 +1,10 @@
 import collections
 import math
-from scipy.stats import ttest_ind_from_stats as t_test
 
-from river import base
-from river import stats
+from river import base, stats
 
 
-class UADWIN(base.DriftDetector):
+class ADWIN(base.DriftDetector):
     def __init__(self, delta=0.05, max_buckets=5, min_samples_test=10):
         super().__init__()
         self.delta = delta
@@ -14,12 +12,15 @@ class UADWIN(base.DriftDetector):
         self.min_samples_test = min_samples_test
         # Grace period: the minimum total number of samples to perform the tests
         self._gp = 2 * self.min_samples_test
+        self.reset()
 
+    def reset(self):
+        super().reset()
         self._levels = collections.deque()
         self._total_var = stats.Var()
 
         self._tick = 0
-        self._clock = 2 ** self.max_buckets
+        self._clock = 2**self.max_buckets
 
         self._n_detections = 0
 
@@ -48,9 +49,9 @@ class UADWIN(base.DriftDetector):
 
         self._total_var.update(x)
         self._compress()
-        self._in_concept_change = self._detect_change()
+        self._drift_detected = self._detect_change()
 
-        return self._in_concept_change, self._in_warning_zone
+        return self
 
     def _compress(self):
         if len(self._levels[-1]) <= self.max_buckets:
@@ -84,7 +85,11 @@ class UADWIN(base.DriftDetector):
 
     def _detect_change(self):
         self._tick += 1
-        if not self._tick % self._clock == 0 or self.size < self._gp or self._total_var.get() <= 0:
+        if (
+            not self._tick % self._clock == 0
+            or self.size < self._gp
+            or self._total_var.get() <= 0
+        ):
             return False
 
         change_detected = False
@@ -118,20 +123,23 @@ class UADWIN(base.DriftDetector):
                     stop_flag = True
                     break
 
-                w0_s2 = w0.get()
+                # TODO check if that is needed
                 w1_s2 = w1.get()
-
                 # Due to numerical precision issues
                 if w1_s2 < 0:
                     w1_s2 = 0
 
-                p_value = t_test(
-                    w0.mean.get(), math.sqrt(w0_s2), w0.mean.n,
-                    w1.mean.get(), math.sqrt(w1_s2), w1.mean.n,
-                    equal_var=True
-                ).pvalue
+                n0 = w0.mean.n
+                n1 = w1.mean.n
 
-                if p_value <= delta:
+                u0 = w0.mean.get()
+                u1 = w1.mean.get()
+                m = 1 / (1 / n0 + 1 / n1)
+                e_cut = math.sqrt(
+                    (2 / m) * self._total_var.get() * math.log(2 / delta)
+                ) + (2 / (3 * m)) * math.log(2 / delta)
+
+                if abs(u0 - u1) > e_cut:
                     change_detected = True
                     w0 = stats.Var()
                     self._total_var = w1
@@ -157,8 +165,3 @@ class UADWIN(base.DriftDetector):
             self._n_detections += 1
 
         return change_detected
-
-    def reset(self):
-        self.__init__(delta=self.delta,
-                      max_buckets=self.max_buckets,
-                      min_samples_test=self.min_samples_test)

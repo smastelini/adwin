@@ -1,7 +1,7 @@
 import random
 from river import stats
 
-from uadwin import UADWIN
+from adwin import ADWIN
 
 rng = random.Random(7)
 
@@ -18,20 +18,21 @@ def pred2(x):
 
 
 for i, v in enumerate(x):
-    if i < 50:
+    if i < 500:
         y.append(pred1(v) + rng.gauss(0, 0.1))
     else:
         y.append(pred2(v) + rng.gauss(0, 0.1))
 
 
 mean = stats.Mean()
-adwin = UADWIN(0.0001)
+adwin = ADWIN(0.0001)
 
 i = 1
 for x_v, y_v in zip(x, y):
-    in_drift, _ = adwin.update(y_v - pred1(x_v))
+    adwin.update(y_v - pred1(x_v))
 
-    if in_drift:
+    if adwin.drift_detected:
         print(f'Drift detected at {i}')
+        adwin.reset()
 
     i += 1

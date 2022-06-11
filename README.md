@@ -1,2 +1,5 @@
-# UADWIN
-Unbounded ADWIN that relies on the Welch's t-test to compare the sliding windows means, under the null hypothesis that they are the same.
+# Pure python ADWIN
+
+Candidate ADWIN implementation in pure Python.
+
+It needs some work, but it may appear at River. I've followed the original ADWIN paper and tried to simplify the code as much as possible.
