@@ -88,7 +88,6 @@ class ADWIN(base.DriftDetector):
         if (
             not self._tick % self._clock == 0
             or self.size < self._gp
-            or self._total_var.get() <= 0
         ):
             return False
 
@@ -122,12 +121,6 @@ class ADWIN(base.DriftDetector):
                 if w1.mean.n < self.min_samples_test:
                     stop_flag = True
                     break
-
-                # TODO check if that is needed
-                w1_s2 = w1.get()
-                # Due to numerical precision issues
-                if w1_s2 < 0:
-                    w1_s2 = 0
 
                 n0 = w0.mean.n
                 n1 = w1.mean.n
