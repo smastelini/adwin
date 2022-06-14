@@ -33,6 +33,5 @@ for x_v, y_v in zip(x, y):
 
     if adwin.drift_detected:
         print(f'Drift detected at {i}')
-        adwin.reset()
 
     i += 1

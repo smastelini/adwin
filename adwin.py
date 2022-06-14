@@ -12,10 +12,10 @@ class ADWIN(base.DriftDetector):
         self.min_samples_test = min_samples_test
         # Grace period: the minimum total number of samples to perform the tests
         self._gp = 2 * self.min_samples_test
-        self.reset()
+        self._reset()
 
-    def reset(self):
-        super().reset()
+    def _reset(self):
+        super()._reset()
         self._levels = collections.deque()
         self._total_var = stats.Var()
 
@@ -41,6 +41,9 @@ class ADWIN(base.DriftDetector):
         return self._n_detections
 
     def update(self, x):
+        if self._drift_detected:
+            self._reset()
+
         # The level of capacity 2 ** 0 needs to be created
         if self.size == 0:
             self._levels.append(collections.deque([x]))
@@ -75,7 +78,8 @@ class ADWIN(base.DriftDetector):
             if len(self._levels[i]) <= self.max_buckets:
                 break
 
-            new_bucket = self._levels[i].popleft() + self._levels[i].popleft()
+            new_bucket = self._levels[i].popleft()
+            new_bucket += self._levels[i].popleft()
 
             # Add the new bucket to the previous level
             if i > 0:
