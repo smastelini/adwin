@@ -89,10 +89,7 @@ class ADWIN(base.DriftDetector):
 
     def _detect_change(self):
         self._tick += 1
-        if (
-            not self._tick % self._clock == 0
-            or self.size < self._gp
-        ):
+        if not self._tick % self._clock == 0 or self.size < self._gp:
             return False
 
         change_detected = False
@@ -115,7 +112,15 @@ class ADWIN(base.DriftDetector):
             j = 0
             while self.size > self._gp and j < len(self._levels[i]):
                 w0 += self._levels[i][j]
-                w1 = self._total_var - w0
+                # Faster than making a deepcopy
+                # Create copy of total_var manually
+                w1 = stats.Var._from_state(
+                    self._total_var.mean.n,
+                    self._total_var.mean.get(),
+                    self._total_var._S,
+                )
+                # Subtract w0
+                w1 -= w0
 
                 if w0.mean.n < self.min_samples_test:
                     j += 1
